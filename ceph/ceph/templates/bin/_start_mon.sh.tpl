@@ -64,7 +64,7 @@ get_mon_config $IP_VERSION
 
 chown ceph. /var/log/ceph
 
-# If we don't have a monitor keyring, this is a new monitor
+# If we don't have mon data locally
 if [ ! -e "$MON_DATA_DIR/keyring" ]; then
   if [ ! -e $MON_KEYRING ]; then
     log "ERROR- $MON_KEYRING must exist.  You can extract it from your current monitor by running 'ceph auth get mon. -o $MON_KEYRING' or use a KV Store"
@@ -81,17 +81,22 @@ if [ ! -e "$MON_DATA_DIR/keyring" ]; then
     ceph-authtool $MON_KEYRING --import-keyring $keyring
   done
 
-  # Prepare the monitor daemon's directory with the map and keyring
+  # Prepare the monitor store
   ceph-mon --setuser ceph --setgroup ceph --cluster ${CLUSTER} --mkfs -i ${MON_NAME} --inject-monmap $MONMAP --keyring $MON_KEYRING --mon-data "$MON_DATA_DIR"
-else
-  log "Trying to get the most recent monmap..."
-  # Ignore when we timeout, in most cases that means the cluster has no quorum or
-  # no mons are up and running yet
-  timeout 5 ceph ${CLI_OPTS} mon getmap -o $MONMAP || true
-  ceph-mon --setuser ceph --setgroup ceph --cluster ${CLUSTER} -i ${MON_NAME} --inject-monmap $MONMAP --keyring $MON_KEYRING --mon-data "$MON_DATA_DIR"
-  timeout 7 ceph ${CLI_OPTS} mon add "${MON_NAME}" "${MON_IP}:6789" || true
 fi
 
+log "Trying to get the most recent monmap..."
+MON_IP_LIST=$(kubectl get pods --namespace=${NAMESPACE} ${KUBECTL_PARAM} -o template --template="{{`{{range .items}}`}}{{`{{if .status.podIP}}`}} {{`{{.status.podIP}}`}} {{`{{end}}`}} {{`{{end}}`}}")
+
+#If there's a quorum, we get the latest monmap
+# from one the existing Ceph monitors and
+# add ourselves to the cluster
+for mon in $MON_IP_LIST; do
+  ceph -m $mon --connect-timeout 10 ${CLI_OPTS} mon getmap -o $MONMAP || continue
+  ceph-mon --setuser ceph --setgroup ceph --cluster ${CLUSTER} -i ${MON_NAME} --inject-monmap $MONMAP --keyring $MON_KEYRING --mon-data "$MON_DATA_DIR"
+  ceph --connect-timeout 10 -m $mon ${CLI_OPTS} mon add "${MON_NAME}" "${MON_IP}:6789"
+  break
+done
 log "SUCCESS"
 
 # start MON
