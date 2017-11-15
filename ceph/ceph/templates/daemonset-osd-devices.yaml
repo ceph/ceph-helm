@@ -35,6 +35,9 @@ spec:
       hostNetwork: true
       hostPID: true
       dnsPolicy: {{ $.Values.pod.dns_policy }}
+      {{- if $value.wait_for }}
+      terminationGracePeriodSeconds: 300
+      {{- end }}
       initContainers:
 {{ tuple $envAll $dependencies "" | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: ceph-init-dirs
@@ -162,6 +165,12 @@ spec:
             - /start_osd.sh
           securityContext:
             privileged: true
+          {{- if $value.wait_for }}
+          lifecycle:
+              preStop:
+                exec:
+                  command: ["/wait_for_ds.sh"]
+         {{- end }}
           volumeMounts:
             - name: devices
               mountPath: /dev
@@ -203,6 +212,10 @@ spec:
             - name: ceph-bin
               mountPath: /common_functions.sh
               subPath: common_functions.sh
+              readOnly: true
+            - name: ceph-bin
+              mountPath: /wait_for_ds.sh
+              subPath: wait_for_ds.sh
               readOnly: true
             - name: ceph-etc
               mountPath: /etc/ceph/ceph.conf
@@ -254,6 +267,10 @@ spec:
             {{- if $value.journal }}
             - name: OSD_JOURNAL
               value: {{ $value.journal }}
+            {{- end }}
+            {{- if $value.wait_for }}
+            - name: WAIT_FOR_DS
+              value: ceph-osd-{{ $value.wait_for }}
             {{- end }}
           livenessProbe:
               tcpSocket:
