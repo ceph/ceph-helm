@@ -265,11 +265,14 @@ osd_directory:
 
 # To use OSD devices
 # journal is optional
-#osd_devices:
-#  - name: dev-sdc
-#    device: /dev/sdc
-#    journal: /dev/sdf
-#    zap: "1"
+osd_devices:
+  - name: dev-sdc
+    device: /dev/sdc
+    zap: "1"
+  - name: dev-sdd
+    device: /dev/sdd
+    wait_for: dev-sdc
+    zap: "1"
 
 bootstrap:
   enabled: false
