@@ -79,5 +79,8 @@ data:
 {{ tuple "bin/_check_mgr.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
   exec_ceph_commands.sh: |+
 {{ tuple "bin/_exec_ceph_commands.sh.tpl" . | include "helm-toolkit.utils.template" | indent 4 }}
+  wait_for_ds.sh: |
+{{ tuple "bin/_wait_for_ds.sh.tpl" . | include  "helm-toolkit.utils.template" | indent 4 }}
+
 {{- end }}
 {{- end }}
