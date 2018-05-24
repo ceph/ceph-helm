@@ -20,6 +20,8 @@ function osd_disk_prepare {
 
   # search for some ceph metadata on the disk
   if [[ "$(parted --script ${OSD_DEVICE} print | egrep '^ 1.*ceph data')" ]]; then
+    # parted will trigger udev, so make sure all current udev event be handled.
+    udevadm settle
     log "It looks like ${OSD_DEVICE} is already an OSD"
     log "Checking if it belongs to this cluster"
     tmp_osd_mount="/var/lib/ceph/tmp/`echo $RANDOM`/"
