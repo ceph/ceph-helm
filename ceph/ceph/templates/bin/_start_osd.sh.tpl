@@ -19,6 +19,8 @@ function osd_trying_to_determine_scenario {
     source osd_directory.sh
     osd_directory
   elif $(parted --script ${OSD_DEVICE} print | egrep -sq '^ 1.*ceph data'); then
+    # parted will trigger udev, so make sure all current udev event be handled.
+    udevadm settle
     log "Bootstrapped OSD found; activating ${OSD_DEVICE}"
     source osd_disk_activate.sh
     osd_activate
